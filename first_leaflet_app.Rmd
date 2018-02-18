@@ -1,0 +1,42 @@
+---
+title: 'Peer-graded Assignment: R Markdown and Leaflet'
+author: "Sha Li"
+date: "2/17/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### The map below created with Leaflet has pins and popups that show 15 busiest airports in the world using data sourced from openflights.
+
+##### Read two datasets from openflights: data about the airports and data about routings, name all columns.
+
+```{r}
+library(leaflet)
+airportData<-read.csv('https://raw.githubusercontent.com/jpatokal/openflights/master/data/airports.dat', header = FALSE, encoding = 'UTF-8')
+colnames(airportData)<-c('Airport ID', 'Name', 'City', 'Country', 'IATA', 'ICAO', 'Latitude', 'Longitude', 'Altitude', 'Timezone', 'DST', 'Tz database time zone', 'Type','Source')
+routeData<-read.csv('https://raw.githubusercontent.com/jpatokal/openflights/master/data/routes.dat',header = FALSE)
+colnames(routeData)<-c('Airline', 'Airline ID', 'Source airport', 'Source airport ID', 'Destination airport', 'Destination airport ID', 'Codeshare', 'Stops', 'Equipment')
+```
+
+##### Find out the top 15 busiest airport three letter codes in the routing dataset, merge with airport dataset to get airport details.
+
+```{r}
+countRoute<-as.data.frame(table(routeData[,3]))
+top15<-head(countRoute[order(-countRoute$Freq),],15)
+mapData<-merge(airportData[,c(2:5,7:8)],top15,by.x = 'IATA',by.y = 'Var1')
+dat<-mapData[,5:6]
+```
+
+##### Use Leaflet to plot the locations of the top 15 busiest airports, the larger the shadowed cirle, the more outbound flights for the airports. Click on the pin to see name, city, and country of the airport.
+
+```{r}
+dat %>% 
+        leaflet() %>%
+        addTiles() %>%
+        addMarkers(popup = paste(mapData$IATA, paste(mapData$Freq, ' Routes', sep = ''), mapData$Name, mapData$City, mapData$Country, sep = '<br/>')) %>%
+        addTiles() %>%
+        addCircles(weight = 1, radius = mapData$Freq*800)
+```
