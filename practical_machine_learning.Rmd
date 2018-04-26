@@ -88,7 +88,7 @@ confusionMatrix(predLDA,validationData$classe)
 
 ## Result
 
-### As we can see, random forest has the highest accuracy. Apply random forest model on 20 testing cases to predict variable 'classe'.
+### As we can see, random forest has the highest accuracy at 97%, with out of sample error rate at only 3%. Apply random forest model on 20 testing cases to predict variable 'classe'.
 
 ```{r}
 predict(modRF,testing)
