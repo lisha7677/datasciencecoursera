@@ -1,0 +1,95 @@
+---
+title: "Practical Machine Learning Coursera Project"
+author: "Sha Li"
+date: "4/25/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+### The goal of this project is to build a prediction model with data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to quantify how well they perform a particular activity. Two sets of data are used to build this prediction model: a training set and a testing set. 
+### The training set is futhered divided into two sets: training and validation. Three models are built with Random Forests, Generalized Boosted Regression, Linear Discriminant Analysis, the best performing model will be used to predict 20 cases in the testing dataset.
+
+## Data source
+
+### Read data from the training set and testing set using fread.
+
+```{r warning=FALSE, message=FALSE, tidy=TRUE}
+library(data.table)
+training<-fread('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv', na.strings=c("NA","#DIV/0!",""))
+testing<-fread('https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv', na.strings=c("NA","#DIV/0!",""))
+```
+
+## Data Cleaning
+
+### Remove the first 7 variables because they have no effect on predicting the last variable 'classe'. There are a lot of NAs in the dataset so they need to be cleaned up as well.
+
+### Before converting all variables to numeric data type, eight variables are excluded: V1, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, new_window, num_window, classe.
+
+```{r}
+numTraining<-as.data.frame(sapply(training[,c(-1:-7,-160)],as.numeric))
+```
+
+### Only keep variables that are 100% completed.
+
+```{r}
+newTraining<-numTraining[,colSums(is.na(numTraining)) == 0]
+```
+
+### Variable classe is added back to the data set.
+
+```{r}
+newTraining$classe<-factor(training$classe)
+```
+
+## Build Three Models with rf, gbm, and lda.
+
+### After removing variables that have at least one missing value, total variable counts reduced from 160 to 53. Partition reduced training data into two sets: training and validation.
+
+```{r warning=FALSE, message=FALSE, tidy=TRUE}
+library(caret);library(kernlab);
+set.seed(123)
+inTrain<-createDataPartition(y = newTraining$classe, p = 0.6, list = FALSE)
+trainingData<-newTraining[inTrain,]
+validationData<-newTraining[-inTrain,]
+```
+
+### Build the first model with Random Forests. Test the model on the validation set.
+
+```{r warning=FALSE, message=FALSE, tidy=TRUE}
+modRF<-train(classe~., data = trainingData, method = 'rf', trControl=trainControl(method = "cv", number = 3), preProcess = 'pca', prox = TRUE)
+modRF
+predRF<-predict(modRF,validationData[-53])
+confusionMatrix(predRF,validationData$classe)
+```
+
+### Build the second model with Generalized Boosted Regression. Test the model on the validation set.
+
+```{r warning=FALSE, message=FALSE, tidy=TRUE}
+modGBM<-train(classe~., data = trainingData, method = 'gbm', verbose = FALSE)
+modGBM
+predGBM<-predict(modGBM,validationData[-53])
+validationData$classe<-factor(validationData$classe)
+confusionMatrix(predGBM,validationData$classe)
+```
+
+### Build the third model with Linear Discriminant Analysis. Test the model on the validation set.
+
+```{r warning=FALSE, message=FALSE, tidy=TRUE}
+modLDA<-train(classe~., data = trainingData, method = 'lda')
+modLDA
+predLDA<-predict(modLDA,validationData[-53])
+confusionMatrix(predLDA,validationData$classe)
+```
+
+## Result
+
+### As we can see, random forest has the highest accuracy. Apply random forest model on 20 testing cases to predict variable 'classe'.
+
+```{r}
+predict(modRF,testing)
+```
