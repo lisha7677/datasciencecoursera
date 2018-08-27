@@ -143,38 +143,13 @@ bigram90<-bigram[cumsum(bigram$prop)<=0.9,1:2]
 trigram90<-trigram[cumsum(trigram$prop)<=0.9,1:2]
 quadgram90<-quadgram[cumsum(quadgram$prop)<=0.9,1:2]
 ```
-#### create matrix to find largest count - not recommended method.
-#### https://rpubs.com/BreaizhZut/MilesStone_NgramPrediction
-```{r}
-Sys.time()
-bimatrix<-matrix(data = NA, nrow = 400, ncol = 400)
-for (i in 1:400) {
-        for (j in 1:400) {
-                bi<-paste0(unigram90[i,1], unigram90[j,1])
-                if (length(is.na(bigram90[bigram90$ngrams == bi, 2])) == 0) {
-                        bimatrix[i,j]<-0
-                } else {
-                        bimatrix[i,j]<-bigram90[bigram90$ngrams == bi, 2]
-                }
-                
-        }
-}
-Sys.time()
-#"2018-08-13 18:13:28 PDT" - "2018-08-13 18:13:33 PDT" 5 seconds 50
-#"2018-08-13 18:14:17 PDT" - "2018-08-13 18:14:35 PDT" 18 seconds 100
-#"2018-08-13 18:15:20 PDT" - "2018-08-13 18:16:26 PDT" 66 seconds 200
-#"2018-08-13 18:16:47 PDT" - "2018-08-13 18:20:50 PDT" 243 seconds 400  
-biPredict<-function(x) {
-        row<-which(unigram90$ngrams == paste(trimws(x), ''))
-        unigram90[which.max(bimatrix[row,]),1]
-}
-```
-#### remove words with count 1
+#### remove words with count 1 from corpus
 ```{r}
 uniN2<-unigram[unigram$freq>1,1:2]
 biN2<-bigram[bigram$freq>1,1:2]
-triN2<-trigram[trigram$freq>1,1:2]
-quadN2<-quadgram[quadgram$freq>1,1:2]
+```
+#### build bigram model
+```{r}
 bi1st<-sapply(strsplit(biN2$ngrams, ' '), function(x) {x[1]})
 bi2nd<-sapply(strsplit(biN2$ngrams, ' '), function(x) {x[2]})
 biNo1<-tapply(bi2nd, bi1st, function(x) {x[1]})
@@ -182,7 +157,38 @@ biNo2<-tapply(bi2nd, bi1st, function(x) {x[2]})
 biNo3<-tapply(bi2nd, bi1st, function(x) {x[3]})
 biNo4<-tapply(bi2nd, bi1st, function(x) {x[4]})
 biModel<-function(x) {
-        x<-toString(x)
-        biTop4<-as.data.frame(bi1st, rownames = dimnames(bi1st))
+        biTop4<-cbind.data.frame(value1=biNo1, value2=biNo2, value3=biNo3, value4=biNo4)
+        predict<-biTop4[names(biNo1)==x,]
+        predict
+}
+```
+#### build trigram model
+```{r}
+triN2<-trigram[trigram$freq>1,1:2]
+tri1st<-sapply(strsplit(triN2$ngrams, ' '), function(x) {paste(x[1],x[2])})
+tri2nd<-sapply(strsplit(triN2$ngrams, ' '), function(x) {x[3]})
+triNo1<-tapply(tri2nd, tri1st, function(x) {x[1]})
+triNo2<-tapply(tri2nd, tri1st, function(x) {x[2]})
+triNo3<-tapply(tri2nd, tri1st, function(x) {x[3]})
+triNo4<-tapply(tri2nd, tri1st, function(x) {x[4]})
+triModel<-function(x) {
+        triTop4<-cbind.data.frame(value1=triNo1, value2=triNo2, value3=triNo3, value4=triNo4)
+        predict<-triTop4[names(triNo1)==x,]
+        predict
+}
+```
+#### build quadgram model
+```{r}
+quadN2<-quadgram[quadgram$freq>1,1:2]
+quad1st<-sapply(strsplit(quadN2$ngrams, ' '), function(x) {paste(x[1],x[2],x[3])})
+quad2nd<-sapply(strsplit(quadN2$ngrams, ' '), function(x) {x[4]})
+quadNo1<-tapply(quad2nd, quad1st, function(x) {x[1]})
+quadNo2<-tapply(quad2nd, quad1st, function(x) {x[2]})
+quadNo3<-tapply(quad2nd, quad1st, function(x) {x[3]})
+quadNo4<-tapply(quad2nd, quad1st, function(x) {x[4]})
+quadModel<-function(x) {
+        quadTop4<-cbind.data.frame(value1=quadNo1, value2=quadNo2, value3=quadNo3, value4=quadNo4)
+        predict<-quadTop4[names(quadNo1)==x,]
+        predict
 }
 ```
