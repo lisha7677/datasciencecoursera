@@ -137,29 +137,30 @@ unique(languages)
 #### Words can be reduced by using one word for its synonyms.
 #### build bigram model, remove words with count 1 from corpus
 ```{r}
-biN2<-bigram[bigram$freq>1,1:2]
+biN2<-bigram[bigram$freq>500,1:2]
 bi1st<-sapply(strsplit(biN2$ngrams, ' '), function(x) {x[1]})
 bi2nd<-sapply(strsplit(biN2$ngrams, ' '), function(x) {x[2]})
 biRow<-length(unique(bi1st))
 biCol<-length(unique(bi2nd))
 Sys.time()
-bimatrix<-matrix(NA, nrow = biRow, ncol = biCol, dimnames = list(unique(bi1st), unique(bi2nd)))
+biMatrix<-matrix(NA, nrow = biRow, ncol = biCol, dimnames = list(unique(bi1st), unique(bi2nd)))
 for (i in 1:length(bi1st)) {
-  bimatrix[rownames(bimatrix) == bi1st[i], colnames(bimatrix) == bi2nd[i]]<-biN2[i,2]
+  biMatrix[rownames(biMatrix) == bi1st[i], colnames(biMatrix) == bi2nd[i]]<-biN2[i,2]
 }
 Sys.time()
+biProp<-biMatrix/rowSums(biMatrix, na.rm = TRUE)
 ```
 #### build trigram model, remove words with count 1 from corpus
 ```{r}
-triN2<-trigram[trigram$freq>1,1:2]
+triN2<-trigram[trigram$freq>3,1:2]
 tri1st<-sapply(strsplit(triN2$ngrams, ' '), function(x) {paste(x[1], x[2])})
 tri2nd<-sapply(strsplit(triN2$ngrams, ' '), function(x) {x[3]})
 triRow<-length(unique(tri1st))
 triCol<-length(unique(tri2nd))
 Sys.time()
-trimatrix<-matrix(NA, nrow = triRow, ncol = triCol, dimnames = list(unique(tri1st), unique(tri2nd)))
+triMatrix<-matrix(NA, nrow = triRow, ncol = triCol, dimnames = list(unique(tri1st), unique(tri2nd)))
 for (i in 1:length(tri1st)) {
-  trimatrix[rownames(trimatrix) == tri1st[i], colnames(trimatrix) == tri2nd[i]]<-triN2[i,2]
+  triMatrix[rownames(triMatrix) == tri1st[i], colnames(triMatrix) == tri2nd[i]]<-triN2[i,2]
 }
 Sys.time()
 ```
