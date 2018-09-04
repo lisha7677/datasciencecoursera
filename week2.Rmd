@@ -8,56 +8,11 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-#### The goal of the week 2 project is to summarize important features of data using exploratory analysis, then create the basis of a text prediction model that will predict the next word after user starts typing. Three sets of data are used to build the prediction model, they are collected randomly from the news, blogs, and twitter, external data source is used to remove profane words.
-
-#### To answer a few questions asked in week2:
-#### What are the common steps in natural language processing?
-#### There are generally five steps: lexical analysis, syntactic analysis, semantic analysis, discourse integration, pragmatic analysis.
-#### What are some common issues in the analysis of text data? NEED REVISION
-#### Sentiment detection in text data can be challenging because it is difficult for computers to understand humor, sarcasm, subconscious bias etc. This capstone project isn't going to analyzing sentiment so it should be manageable.
-#### What is the relationship between NLP and the concepts you have learned in the Specialization?
-#### NLP uses AI and linguistics to build systems that can understand language. ML is an area of AI and it buils systems to learn from experience. ML techniques can be used to build systems that can learn how to understand language.
 
 ```{r message=FALSE, warning=FALSE}
 library(tm)
 library(ngram)
-library(ggplot2)
 library(textcat)
-```
-#### do not run code
-```{r}
-setwd('/Users/Capti/Downloads/10_capstone/final/en_US/')
-blogs<-readLines('en_US.blogs.txt', encoding = 'UTF-8', skipNul = TRUE)
-news<-readLines('en_US.news.txt', encoding = 'UTF-8', skipNul = TRUE)
-twitter<-readLines('en_US.twitter.txt', encoding = 'UTF-8', skipNul = TRUE)
-```
-#### What do data look like?
-```{r cache=TRUE}
-summary<-data.frame(
-        'file'=c('blogs', 'news', 'twitter'),
-        'size'=sapply(list(blogs, news, twitter), function(x) {format(object.size(x), units = 'MB')}),
-        'line'=sapply(list(blogs, news, twitter), function(x) {length(x)}),
-        'char'=sapply(list(blogs, news, twitter), function(x) {sum(nchar(x))}),
-        'maxChar'=sapply(list(blogs, news, twitter), function(x) {max(nchar(x))})
-)
-summary
-```
-#### Only 0.01% of the data is sampled from each data set to build the model, because my laptop only has 4GB RAM. 3 sample sets are combined to form one corpus.
-```{r}
-set.seed(1234)
-blogsSample<-blogs[sample(length(blogs), length(blogs)*0.001)]
-newsSample<-news[sample(length(news), length(news)*0.001)]
-twitterSample<-twitter[sample(length(twitter), length(twitter)*0.001)]
-corpus<-c(blogsSample, newsSample, twitterSample)
-inTrain<-sample(length(corpus), length(corpus)*0.6)
-training<-corpus[inTrain]
-test<-corpus[-inTrain]
-inTest<-sample(length(test), length(test)*0.5)
-testing<-test[inTest]
-dev<-test[-inTest]
-writeLines(training, 'training.txt')
-writeLines(dev, 'dev.txt')
-writeLines(testing, 'testing.txt')  
 ```
 #### read in training set.
 ```{r}
@@ -69,7 +24,7 @@ profanity<-read.table('http://www.bannedwordlist.com/lists/swearWords.txt')
 ```
 #### Convert all words to lower case, remove punctuation, remove numbers, remove extra spacing, there is no need to remove stop words because they are the necessary component of the syntax. 815 is the longest line.
 ```{r}
-corpora<-unlist(strsplit(training, '\\.|\\?|\\!|\\:'))
+corpora<-unlist(strsplit(training, '\\.|\\?|\\!|\\:|\\,|\\;'))
 corpora<-removeNumbers(corpora)
 corpora<-removePunctuation(corpora)
 corpora<-tolower(corpora)
@@ -85,82 +40,67 @@ biCorpora<-corpora[sapply(strsplit(corpora, ' '), length) > 1]
 biToken <- ngram(biCorpora, n = 2)
 triCorpora<-corpora[sapply(strsplit(corpora, ' '), length) > 2]
 triToken <- ngram(triCorpora, n = 3)
-quadCorpora<-corpora[sapply(strsplit(corpora, ' '), length) > 3]
-quadToken <- ngram(quadCorpora, n = 4)
 ```
 #### Understand frequencies of words and word pairs - build figures and tables to understand variation in the frequencies of words and word pairs in the data. Print top 10 most frequent word or words in unigrams, bigrams, trigrams, and quadgrams.
 ```{r}
 unigram <- get.phrasetable(uniToken)
-head(unigram,10)
 bigram <- get.phrasetable(biToken)
-head(bigram,10)
 trigram <- get.phrasetable(triToken)
-head(trigram,10)
-quadgram <- get.phrasetable(quadToken)
-head(quadgram,10)
 ```
-#### Some words are more frequent than others, plot the distributions of word frequencies for unigrams. Plot log10(freq) for better visualization.
+#### build bigram model, remove words with few counts from corpus
 ```{r}
-options(scipen = 999)
-plot<-ggplot(unigram, aes(x = log10(freq))) + geom_histogram() + xlab('Unigram Frequency') + ggtitle('Unigram Word Frequency')
-plot
-```
-#### Above unigrams plot shows that majority of the words only appear once, change the limit of the x axis to have a better look at word distribution.
-```{r}
-Uniplot<-ggplot(unigram, aes(x = freq)) + geom_histogram() + scale_x_continuous(breaks = seq(0,10,1), limits = c(0, 10)) + xlab('Unigram Frequency') + ggtitle('Unigram Word Frequency')
-Uniplot
-Biplot<-ggplot(bigram, aes(x = freq)) + geom_histogram() + scale_x_continuous(breaks = seq(0,10,1), limits = c(0, 10)) + xlab('Bigram Frequency') + ggtitle('Bigram Word Frequency')
-Biplot
-Triplot<-ggplot(trigram, aes(x = freq)) + geom_histogram() + scale_x_continuous(breaks = seq(0,10,1), limits = c(0, 10)) + xlab('Trigram Frequency') + ggtitle('Trigram Word Frequency')
-Triplot
-Quadplot<-ggplot(quadgram, aes(x = freq)) + geom_histogram() + scale_x_continuous(breaks = seq(0,10,1), limits = c(0, 10)) + xlab('Quadgram Frequency') + ggtitle('Quadgram Word Frequency')
-Quadplot
-```
-#### Above plots show majority of the words appear less than 10 times.
-#### How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?
-```{r}
-uni50<-which(cumsum(unigram$prop)>0.5)
-uni50[1]
-```
-#### `r uni50[1]` unique words are needed in a frequency sorted dictionary to cover 50% of all word instances in the language.
-```{r}
-uni90<-which(cumsum(unigram$prop)>0.9)
-uni90[1]
-```
-#### `r uni90[1]` unique words are needed in a frequency sorted dictionary to cover 90% of all word instances in the language.
-#### How do you evaluate how many of the words come from foreign languages? textcat package is used to identify foreign languages. Print foreign languages detected in the corpus.
-```{r}
-languages<-textcat(corpus)
-unique(languages)
-```
-#### Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?
-#### Words can be reduced by using one word for its synonyms.
-#### build bigram model, remove words with count 1 from corpus
-```{r}
-biN2<-bigram[bigram$freq>500,1:2]
-bi1st<-sapply(strsplit(biN2$ngrams, ' '), function(x) {x[1]})
-bi2nd<-sapply(strsplit(biN2$ngrams, ' '), function(x) {x[2]})
-biRow<-length(unique(bi1st))
-biCol<-length(unique(bi2nd))
+bigramS<-data.frame(do.call('rbind', strsplit(bigram$ngrams, ' ', fixed = TRUE)), bigram$freq, stringsAsFactors = FALSE)
+
+biN<-bigramS[bigramS$bigram.freq>=10,]
+
+biRow<-unique(biN$X1)
+biCol<-unique(biN$X2)
+
 Sys.time()
-biMatrix<-matrix(NA, nrow = biRow, ncol = biCol, dimnames = list(unique(bi1st), unique(bi2nd)))
-for (i in 1:length(bi1st)) {
-  biMatrix[rownames(biMatrix) == bi1st[i], colnames(biMatrix) == bi2nd[i]]<-biN2[i,2]
+biMatrix<-matrix(NA, nrow = length(biRow), ncol = length(biCol), dimnames = list(biRow, biCol))
+for (i in 1:nrow(biN)) {
+  biMatrix[rownames(biMatrix) == biN[i,1], colnames(biMatrix) == biN[i,2]]<-biN[i,3]
 }
 Sys.time()
-biProp<-biMatrix/rowSums(biMatrix, na.rm = TRUE)
+
+biA<-sapply(biRow, function(x) {sum(bigramS[bigramS$X1==x, 3])})
+biB<-sapply(biCol, function(x) {sum(bigramS[bigramS$X2==x, 3])})
+biC<-rowSums(biMatrix, na.rm = TRUE)
+biD<-colSums(biMatrix, na.rm = TRUE)
+
+biRowUNK<-biA-bic
+biColUNK<-c(biB-biD, NA)
+
+biMatrixUNK<-rbind(cbind(biMatrix, unk = biRowUNK), unk = biColUNK)
+
+biProp<-biMatrixUNK/rowSums(biMatrixUNK, na.rm = TRUE)
 ```
-#### build trigram model, remove words with count 1 from corpus
+#### build trigram model, remove words with few counts from corpus
 ```{r}
-triN2<-trigram[trigram$freq>3,1:2]
-tri1st<-sapply(strsplit(triN2$ngrams, ' '), function(x) {paste(x[1], x[2])})
-tri2nd<-sapply(strsplit(triN2$ngrams, ' '), function(x) {x[3]})
-triRow<-length(unique(tri1st))
-triCol<-length(unique(tri2nd))
+trigramSplit<-data.frame(do.call('rbind', strsplit(trigram$ngrams, ' ', fixed = TRUE)), trigram$freq, stringsAsFactors = FALSE)
+trigramS<-cbind.data.frame(X1 = paste(trigramSplit$X1, trigramSplit$X2), X2 = trigramSplit$X3, trigram.freq = trigramSplit$trigram.freq)
+
+triN<-trigramS[trigramS$trigram.freq>=10,]
+
+triRow<-unique(triN$X1)
+triCol<-unique(triN$X2)
+
 Sys.time()
-triMatrix<-matrix(NA, nrow = triRow, ncol = triCol, dimnames = list(unique(tri1st), unique(tri2nd)))
-for (i in 1:length(tri1st)) {
-  triMatrix[rownames(triMatrix) == tri1st[i], colnames(triMatrix) == tri2nd[i]]<-triN2[i,2]
+triMatrix<-matrix(NA, nrow = length(triRow), ncol = length(triCol), dimnames = list(triRow, triCol))
+for (i in 1:nrow(triN)) {
+  triMatrix[rownames(triMatrix) == triN[i,1], colnames(triMatrix) == triN[i,2]]<-triN[i,3]
 }
 Sys.time()
+
+triA<-sapply(triRow, function(x) {sum(trigramS[trigramS$X1==x, 3])})
+triB<-sapply(triCol, function(x) {sum(trigramS[trigramS$X2==x, 3])})
+triC<-rowSums(triMatrix, na.rm = TRUE)
+triD<-colSums(triMatrix, na.rm = TRUE)
+
+triRowUNK<-triA-triC
+triColUNK<-c(triB-triD, NA)
+
+triMatrixUNK<-rbind(cbind(triMatrix, unk = triRowUNK), unk = triColUNK)
+
+triProp<-triMatrixUNK/rowSums(triMatrixUNK, na.rm = TRUE)
 ```
